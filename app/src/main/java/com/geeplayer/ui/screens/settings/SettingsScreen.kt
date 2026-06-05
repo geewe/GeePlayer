@@ -27,7 +27,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
 
     // 从 DataStore 读取状态
-    val dataStoreDeviceName by prefs.deviceName.collectAsState(initial = "DLNA Receiver")
+    val dataStoreDeviceName by prefs.deviceName.collectAsState(initial = "GeePlayer")
     val dataStoreDarkMode by prefs.darkMode.collectAsState(initial = true)
     val dataStoreFont by prefs.fontFamily.collectAsState(initial = "serif")
 
@@ -139,10 +139,10 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             title = { Text("关于") },
             text = {
                 Column {
-                    Text("DLNA Receiver", style = MaterialTheme.typography.titleMedium)
+                    Text("GeePlayer", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
                     Text("版本: 1.0.0")
-                    Text("DLNA 媒体渲染器，接收局域网设备推送的音频。")
+                    Text("GeePlayer - DLNA 媒体渲染器")
                 }
             },
             confirmButton = {
@@ -212,7 +212,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             SettingsSection("其他") {
                 SettingsCard(Icons.Rounded.PowerSettingsNew, "开机自启", "系统启动时自动运行", onClick = { })
                 HorizontalDivider(Modifier.padding(horizontal = 16.dp))
-                SettingsCard(Icons.Rounded.Info, "关于", "DLNA Receiver v1.0.0", onClick = { showAbout = true })
+                SettingsCard(Icons.Rounded.Info, "关于", "GeePlayer v1.0.0", onClick = { showAbout = true })
             }
 
             Spacer(Modifier.height(32.dp))
