@@ -7,8 +7,8 @@ import com.geeplayer.upnp.core.UpnpConstants
 import com.geeplayer.upnp.core.UpnpStack
 import kotlinx.coroutines.*
 import java.net.*
-import java.text.SimpleDateFormat
 import java.util.*
+import java.text.SimpleDateFormat
 
 class SsdpServer(
     private val context: Context,
@@ -27,6 +27,7 @@ class SsdpServer(
     private var isRunning = false
 
     private val locationTemplate: String get() = upnpStack.deviceDescUrl
+    private val dateHeader: String get() = "DATE: " + SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US).format(Date()) + "\r\n"
     private val serverName: String get() = UpnpConstants.Ssdp.SERVER
     private val usnRoot: String get() = "${upnpStack.udn}::upnp:rootdevice"
     private val usnDevice: String get() = "${upnpStack.udn}::${UpnpConstants.URN_DEVICE}"
@@ -106,9 +107,19 @@ class SsdpServer(
                             UpnpConstants.URN_AVT -> listOf(usnAVT)
                             UpnpConstants.URN_RC -> listOf(usnRC)
                             UpnpConstants.URN_CMGR -> listOf(usnCmgr)
-                            else -> if (st == upnpStack.udn) listOf(usnDevice) else null
+                            else -> {
+                            // 兼容搜索: 如果 ST 包含我们的 URN 或设备类型，也响应
+                            if (st == upnpStack.udn || st.contains("MediaRenderer") || st.contains(UpnpConstants.URN_AVT) || st.contains(UpnpConstants.URN_RC) || st.contains(UpnpConstants.URN_CMGR)) {
+                                listOf(usnDevice)
+                            } else null
                         }
-                        usns?.forEach { usn -> sendMSearchResponse(usn, packet.address, packet.port) }
+                        }
+                        // 在 SSDP 响应中，ST 不应含 UUID 前缀（只取 :: 后面的部分）
+                        // 例如 USN="uuid:xxx::upnp:rootdevice" -> ST="upnp:rootdevice"
+                        usns?.forEach { fullUsn ->
+                            val searchTarget = fullUsn.substringAfter("::", fullUsn)
+                            sendMSearchResponse(fullUsn, searchTarget, packet.address, packet.port)
+                        }
                     }
                 }
             } catch (e: SocketException) { if (isRunning) Log.w(TAG, "Socket error", e) }
@@ -116,17 +127,18 @@ class SsdpServer(
         }
     }
 
-    private fun sendMSearchResponse(usn: String, targetAddr: InetAddress, targetPort: Int) {
+    private fun sendMSearchResponse(usn: String, st: String, targetAddr: InetAddress, targetPort: Int) {
         try {
             val msg = buildString {
                 append("HTTP/1.1 200 OK\r\n")
                 append("CACHE-CONTROL: max-age=1800\r\n")
                 append("EXT:\r\n")
+                append(dateHeader)
                 append("LOCATION: $locationTemplate\r\n")
                 append("SERVER: $serverName\r\n")
-                append("ST: $usn\r\n")
+                append("ST: $st\r\n")
                 append("USN: $usn\r\n")
-                append("X-AV-Physical-Unit-Information: http://${upnpStack.deviceDescUrl}/device.xml\r\n")
+                append("X-AV-Physical-Unit-Information: NA\r\n")
                 append("BOOTID.UPNP.ORG: 1\r\n")
                 append("CONFIGID.UPNP.ORG: 1\r\n")
                 append("\r\n")
@@ -157,6 +169,7 @@ class SsdpServer(
                     append("LOCATION: $locationTemplate\r\n")
                     append("NT: $nt\r\n")
                     append("NTS: ssdp:alive\r\n")
+                    append(dateHeader)
                     append("SERVER: $serverName\r\n")
                     append("USN: $usn\r\n")
                     append("\r\n")
@@ -178,5 +191,10 @@ class SsdpServer(
         } catch (e: Exception) { Log.w(TAG, "byebye error", e) }
     }
 
-    private fun parseSearchTarget(message: String): String? = message.lines().firstOrNull { it.startsWith("ST:", true) }?.substringAfter(":")?.trim()
+    private fun parseSearchTarget(message: String): String? {
+        // 兼容各种 ST 格式: "ST:xxx", "ST: xxx", "ST:  xxx"
+        return message.lines().firstOrNull { it.startsWith("ST:", true) }
+            ?.substringAfter(":")?.trim()
+            ?.removeSurrounding("\"")
+    }
 }

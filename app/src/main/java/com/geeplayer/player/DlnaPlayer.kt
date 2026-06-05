@@ -203,12 +203,19 @@ class DlnaPlayer(private val context: Context) {
         val uriObj = Uri.parse(uri)
         val dataSourceFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
-            .setUserAgent("DlnaReceiver/1.0 Android")
+            .setUserAgent("Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+            .setKeepPostFor302Redirects(false)
+            .setConnectTimeoutMs(15000)
+            .setReadTimeoutMs(30000)
+
+        val mediaItem = MediaItem.Builder()
+            .setUri(uriObj)
+            .build()
 
         return if (uri.contains(".m3u8", ignoreCase = true)) {
-            HlsMediaSource.Factory(dataSourceFactory).createMediaSource(MediaItem.fromUri(uriObj))
+            HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
         } else {
-            ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(MediaItem.fromUri(uriObj))
+            ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
         }
     }
 

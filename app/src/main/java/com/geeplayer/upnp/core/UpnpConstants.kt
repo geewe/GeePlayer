@@ -36,7 +36,7 @@ object UpnpConstants {
     object Ssdp {
         const val MX = 3
         const val MAN = "\"ssdp:discover\""
-        const val SERVER = "Android/14 UPnP/1.0 DlnaReceiver/1.0"
+        const val SERVER = "Android/14 UPnP/1.0 GeePlayer/1.0"
 
         // ST (Search Target) 值
         const val ST_ALL = "ssdp:all"

@@ -29,11 +29,25 @@ class UpnpHttpServer(
     )
     val debug = DebugInfo()
 
+    // 最近 20 条 SOAP 请求记录
+    private val _requestHistory = java.util.Collections.synchronizedList(mutableListOf<RequestRecord>())
+    val requestHistory: List<RequestRecord> get() = _requestHistory.toList()
+    data class RequestRecord(
+        val time: String = "",
+        val method: String = "",
+        val uri: String = "",
+        val soapAction: String = "",
+        val bodyPreview: String = "",
+        val bodyLength: Int = 0,
+        val success: Boolean = false
+    )
+
     override fun serve(session: IHTTPSession): Response {
         return try {
             debug.lastMethod = session.method.name
             debug.lastUri = session.uri
             debug.lastError = ""
+            Log.i(TAG, "HTTP: ${session.method.name} ${session.uri} from UA=${session.headers["user-agent"] ?: "(none)"}")
 
             when (session.uri) {
                 "/device.xml", "/description.xml" -> handleDeviceDescription()
@@ -78,33 +92,158 @@ class UpnpHttpServer(
 <scpd xmlns="urn:schemas-upnp-org:service-1-0">
     <specVersion><major>1</major><minor>0</minor></specVersion>
     <actionList>
-        <action><name>SetAVTransportURI</name></action>
-        <action><name>SetNextAVTransportURI</name></action>
-        <action><name>Play</name></action>
-        <action><name>Pause</name></action>
-        <action><name>Stop</name></action>
-        <action><name>Seek</name></action>
-        <action><name>Next</name></action>
-        <action><name>Previous</name></action>
-        <action><name>GetPositionInfo</name></action>
-        <action><name>GetTransportInfo</name></action>
-        <action><name>GetTransportSettings</name></action>
-        <action><name>GetDeviceCapabilities</name></action>
-        <action><name>GetCurrentTransportActions</name></action>
+        <action>
+            <name>SetAVTransportURI</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+                <argument><name>CurrentURI</name><direction>in</direction><relatedStateVariable>AVTransportURI</relatedStateVariable></argument>
+                <argument><name>CurrentURIMetaData</name><direction>in</direction><relatedStateVariable>AVTransportURIMetaData</relatedStateVariable></argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>SetNextAVTransportURI</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+                <argument><name>NextURI</name><direction>in</direction><relatedStateVariable>AVTransportURI</relatedStateVariable></argument>
+                <argument><name>NextURIMetaData</name><direction>in</direction><relatedStateVariable>AVTransportURIMetaData</relatedStateVariable></argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>Play</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+                <argument><name>Speed</name><direction>in</direction><relatedStateVariable>TransportPlaySpeed</relatedStateVariable></argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>Pause</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>Stop</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>Seek</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+                <argument><name>Unit</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_SeekMode</relatedStateVariable></argument>
+                <argument><name>Target</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_SeekTarget</relatedStateVariable></argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>Next</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>Previous</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>GetPositionInfo</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+                <argument><name>Track</name><direction>out</direction><relatedStateVariable>CurrentTrack</relatedStateVariable></argument>
+                <argument><name>TrackDuration</name><direction>out</direction><relatedStateVariable>CurrentTrackDuration</relatedStateVariable></argument>
+                <argument><name>TrackMetaData</name><direction>out</direction><relatedStateVariable>TrackMetaData</relatedStateVariable></argument>
+                <argument><name>TrackURI</name><direction>out</direction><relatedStateVariable>TrackURI</relatedStateVariable></argument>
+                <argument><name>RelTime</name><direction>out</direction><relatedStateVariable>RelativeTimePosition</relatedStateVariable></argument>
+                <argument><name>AbsTime</name><direction>out</direction><relatedStateVariable>AbsoluteTimePosition</relatedStateVariable></argument>
+                <argument><name>RelCount</name><direction>out</direction><relatedStateVariable>RelativeCounter</relatedStateVariable></argument>
+                <argument><name>AbsCount</name><direction>out</direction><relatedStateVariable>AbsoluteCounter</relatedStateVariable></argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>GetTransportInfo</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+                <argument><name>CurrentTransportState</name><direction>out</direction><relatedStateVariable>TransportState</relatedStateVariable></argument>
+                <argument><name>CurrentTransportStatus</name><direction>out</direction><relatedStateVariable>TransportStatus</relatedStateVariable></argument>
+                <argument><name>CurrentSpeed</name><direction>out</direction><relatedStateVariable>TransportPlaySpeed</relatedStateVariable></argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>GetTransportSettings</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+                <argument><name>PlayMode</name><direction>out</direction><relatedStateVariable>CurrentPlayMode</relatedStateVariable></argument>
+                <argument><name>RecQualityMode</name><direction>out</direction><relatedStateVariable>CurrentRecordQualityMode</relatedStateVariable></argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>GetDeviceCapabilities</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+                <argument><name>PlayMedia</name><direction>out</direction><relatedStateVariable>PossiblePlayMedia</relatedStateVariable></argument>
+                <argument><name>RecMedia</name><direction>out</direction><relatedStateVariable>PossibleRecordMedia</relatedStateVariable></argument>
+                <argument><name>RecQualityModes</name><direction>out</direction><relatedStateVariable>PossibleRecordQualityModes</relatedStateVariable></argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>GetMediaInfo</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+                <argument><name>NrTracks</name><direction>out</direction><relatedStateVariable>NumberOfTracks</relatedStateVariable></argument>
+                <argument><name>MediaDuration</name><direction>out</direction><relatedStateVariable>CurrentMediaDuration</relatedStateVariable></argument>
+                <argument><name>CurrentURI</name><direction>out</direction><relatedStateVariable>AVTransportURI</relatedStateVariable></argument>
+                <argument><name>CurrentURIMetaData</name><direction>out</direction><relatedStateVariable>AVTransportURIMetaData</relatedStateVariable></argument>
+                <argument><name>NextURI</name><direction>out</direction><relatedStateVariable>NextAVTransportURI</relatedStateVariable></argument>
+                <argument><name>NextURIMetaData</name><direction>out</direction><relatedStateVariable>NextAVTransportURIMetaData</relatedStateVariable></argument>
+                <argument><name>PlayMedium</name><direction>out</direction><relatedStateVariable>CurrentPlayMedium</relatedStateVariable></argument>
+                <argument><name>RecordMedium</name><direction>out</direction><relatedStateVariable>CurrentRecordMedium</relatedStateVariable></argument>
+                <argument><name>WriteStatus</name><direction>out</direction><relatedStateVariable>CurrentWriteStatus</relatedStateVariable></argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>GetCurrentTransportActions</name>
+            <argumentList>
+                <argument><name>InstanceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_InstanceID</relatedStateVariable></argument>
+                <argument><name>Actions</name><direction>out</direction><relatedStateVariable>CurrentTransportActions</relatedStateVariable></argument>
+            </argumentList>
+        </action>
     </actionList>
     <serviceStateTable>
         <stateVariable sendEvents="yes"><name>TransportState</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="yes"><name>TransportStatus</name><dataType>string</dataType></stateVariable>
         <stateVariable sendEvents="yes"><name>CurrentTransportActions</name><dataType>string</dataType></stateVariable>
         <stateVariable sendEvents="yes"><name>AbsoluteTimePosition</name><dataType>string</dataType></stateVariable>
         <stateVariable sendEvents="yes"><name>RelativeTimePosition</name><dataType>string</dataType></stateVariable>
         <stateVariable sendEvents="no"><name>AVTransportURI</name><dataType>string</dataType></stateVariable>
-        <stateVariable sendEvents="no"><name>TrackDuration</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>AVTransportURIMetaData</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>NextAVTransportURI</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>NextAVTransportURIMetaData</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>TrackURI</name><dataType>string</dataType></stateVariable>
         <stateVariable sendEvents="no"><name>TrackMetaData</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>CurrentTrack</name><dataType>i4</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>CurrentTrackDuration</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>CurrentMediaDuration</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>NumberOfTracks</name><dataType>i4</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>A_ARG_TYPE_InstanceID</name><dataType>i4</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>A_ARG_TYPE_SeekMode</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>A_ARG_TYPE_SeekTarget</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>TransportPlaySpeed</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>CurrentPlayMode</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>CurrentRecordQualityMode</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>PossiblePlayMedia</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>PossibleRecordMedia</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>PossibleRecordQualityModes</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>CurrentPlayMedium</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>CurrentRecordMedium</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>CurrentWriteStatus</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>RelativeCounter</name><dataType>i4</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>AbsoluteCounter</name><dataType>i4</dataType></stateVariable>
     </serviceStateTable>
 </scpd>"""
         return newFixedLengthResponse(Response.Status.OK, "text/xml; charset=\"utf-8\"", scpd)
     }
-
     private fun handleRCScpd(): Response {
         val scpd = """<?xml version="1.0" encoding="utf-8"?>
 <scpd xmlns="urn:schemas-upnp-org:service-1-0">
@@ -151,9 +290,13 @@ class UpnpHttpServer(
             it.key.equals("SOAPACTION", ignoreCase = true)
         }?.value?.trim('"', ' ') ?: ""
         val serviceType = soapAction.substringBeforeLast("#")
+        val ct = session.headers.entries.firstOrNull {
+            it.key.equals("content-type", ignoreCase = true)
+        }?.value ?: "(none)"
 
         debug.lastSoapAction = soapAction
         debug.lastBody = body.take(300)
+        Log.i(TAG, "SOAP: '$soapAction' bodyLen=${body.length} ct=$ct")
 
         val responseXml = when (serviceType) {
             UpnpConstants.URN_AVT -> avTransportService?.handleAction(soapAction, body)
@@ -167,7 +310,19 @@ class UpnpHttpServer(
             }
         }
 
-        return if (responseXml != null) {
+        val success = responseXml != null
+        _requestHistory.add(RequestRecord(
+            time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date()),
+            method = session.method.name,
+            uri = session.uri,
+            soapAction = soapAction,
+            bodyPreview = body.take(120),
+            bodyLength = body.length,
+            success = success
+        ))
+        if (_requestHistory.size > 20) _requestHistory.removeAt(0)
+
+        return if (success) {
             newFixedLengthResponse(Response.Status.OK, "text/xml; charset=\"utf-8\"", responseXml)
         } else {
             val avtOk = avTransportService != null
@@ -237,6 +392,14 @@ class UpnpHttpServer(
             appendLine("<h3>Errors</h3><pre>")
             appendLine(debug.lastError)
             appendLine("</pre>")
+            appendLine("<h2>Request History (last ${_requestHistory.size})</h2>")
+            appendLine("<table border='1' cellpadding='4' cellspacing='0' style='border-collapse:collapse;width:100%;font-size:13px'>")
+            appendLine("<tr style='background:#333'><th>Time</th><th>Action</th><th>Len</th><th>OK</th><th>Body Preview</th></tr>")
+            _requestHistory.reversed().forEach { r ->
+                val cls = if (r.success) "ok" else "fail"
+                appendLine("<tr><td>${r.time}</td><td>${r.soapAction}</td><td>${r.bodyLength}</td><td class='$cls'>${r.success}</td><td style='font-size:11px'>${r.bodyPreview.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")}</td></tr>")
+            }
+            appendLine("</table>")
             appendLine("<h3>Player State</h3><pre id='playerState'>")
             appendLine("(page not refreshed since last request)")
             appendLine("</pre>")
@@ -290,7 +453,8 @@ class UpnpHttpServer(
                 appendLine("")
                 appendLine("--- Connected Devices ---")
                 avt.connectedDevices.forEachIndexed { i, d ->
-                    appendLine("$i: ${d.name} (${d.uri})")
+                    val shortUri = d.uri.take(60) + if (d.uri.length > 60) "..." else ""
+                appendLine("$i: ${d.name} ($shortUri)")
                 }
             }
         }
@@ -299,7 +463,7 @@ class UpnpHttpServer(
 
     private fun handleWebIndex(): Response {
         val html = """<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>GeePlayer</title>
+<html><head><meta charset=\"utf-8\"><title>GeePlayer</title>
 <style>body{font-family:sans-serif;background:#121224;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
 .card{background:#1E1E3A;border-radius:20px;padding:32px;text-align:center;width:360px}
 h1{color:#BB86FC}.info{color:rgba(255,255,255,0.7)}</style></head>

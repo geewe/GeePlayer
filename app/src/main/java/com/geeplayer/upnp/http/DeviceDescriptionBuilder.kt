@@ -17,12 +17,14 @@ object DeviceDescriptionBuilder {
         val name = stack.name
 
         return """<?xml version="1.0" encoding="utf-8"?>
-<root xmlns="urn:schemas-upnp-org:device-1-0">
+<root xmlns="urn:schemas-upnp-org:device-1-0" xmlns:dlna="urn:schemas-dlna-org:device-1-0">
     <specVersion>
         <major>1</major>
         <minor>0</minor>
     </specVersion>
     <device>
+        <dlna:X_DLNACAP/>
+        <dlna:X_DLNADOC>DMR-1.50</dlna:X_DLNADOC>
         <deviceType>${UpnpConstants.URN_DEVICE}</deviceType>
         <friendlyName>$name</friendlyName>
         <manufacturer>GeePlayer</manufacturer>

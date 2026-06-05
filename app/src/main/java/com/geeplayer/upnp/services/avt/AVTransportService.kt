@@ -52,6 +52,7 @@ class AVTransportService(
             "Next", "Previous",
             "GetPositionInfo", "GetTransportInfo",
             "GetTransportSettings", "GetDeviceCapabilities",
+            "GetMediaInfo",
             "GetCurrentTransportActions"
         )
     }
@@ -73,6 +74,7 @@ class AVTransportService(
                 "Seek" -> handleSeek(body)
                 "Next" -> handleNext()
                 "Previous" -> handlePrevious()
+                "GetMediaInfo" -> handleGetMediaInfo(body)
                 "GetPositionInfo" -> handleGetPositionInfo(body)
                 "GetTransportInfo" -> handleGetTransportInfo()
                 "GetTransportSettings" -> handleGetTransportSettings()
@@ -105,7 +107,10 @@ class AVTransportService(
         val deviceName = extractDidlValue(metadata, "title")?.let {
             if (it.isNotBlank()) it else uri.substringAfterLast("/").substringBefore("?")
         } ?: uri.substringAfterLast("/").substringBefore("?")
+        // 保留最多 20 条记录，相同 URI 不重复添加
+        _connectedDevices.removeAll { it.uri == uri }
         _connectedDevices.add(ConnectedDevice(name = deviceName, uri = uri))
+        if (_connectedDevices.size > 20) _connectedDevices.removeAt(0)
 
 
         // 解析 DIDL-Lite 元数据
@@ -329,6 +334,33 @@ class AVTransportService(
     }
 
     // ========== 工具方法 ==========
+
+    /**
+     * GetMediaInfo - è·åå½ååªä½ä¿¡æ¯ï¼æäºå®åå®¢æ·ç«¯å¼å®¹æ§éè¦ï¼
+     */
+    private fun handleGetMediaInfo(body: String): String {
+        val instanceId = extractTag(body, "InstanceID") ?: "0"
+        val duration = stateManager.trackDuration
+        val durationStr = if (duration <= 0) "0:00:00" else {
+            val totalSec = duration
+            "%d:%02d:%02d".format(totalSec / 3600, (totalSec % 3600) / 60, totalSec % 60)
+        }
+        val uri = stateManager.currentUri
+        val metadata = stateManager.currentUriMetadata
+
+        Log.d(TAG, "GetMediaInfo: instanceId=$instanceId, uri=$uri, duration=$durationStr")
+        return buildSoapResponse("GetMediaInfoResponse") {
+            append("<NrTracks>1</NrTracks>\n")
+            append("<MediaDuration>$durationStr</MediaDuration>\n")
+            append("<CurrentURI>$uri</CurrentURI>\n")
+            append("<CurrentURIMetaData>${metadata.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")}</CurrentURIMetaData>\n")
+            append("<NextURI></NextURI>\n")
+            append("<NextURIMetaData></NextURIMetaData>\n")
+            append("<PlayMedium>NETWORK</PlayMedium>\n")
+            append("<RecordMedium>NOT_IMPLEMENTED</RecordMedium>\n")
+            append("<WriteStatus>NOT_IMPLEMENTED</WriteStatus>\n")
+        }
+    }
 
     private fun buildSoapResponse(actionName: String, block: StringBuilder.() -> Unit): String {
         val content = StringBuilder().apply(block).toString()
