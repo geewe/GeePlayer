@@ -152,7 +152,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 Column {
                     Text("GeePlayer", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
-                    Text("版本: 1.0.0")
+                    Text("版本: 1.1.0")
                     Text("GeePlayer - DLNA 媒体渲染器")
                 }
             },
@@ -299,7 +299,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         }
                     })
                 HorizontalDivider(Modifier.padding(horizontal = 16.dp))
-                SettingsCard(Icons.Rounded.Info, "关于", "GeePlayer v1.0.0", onClick = { showAbout = true })
+                SettingsCard(Icons.Rounded.Info, "关于", "GeePlayer v1.1.0", onClick = { showAbout = true })
             }
 
             Spacer(Modifier.height(32.dp))
