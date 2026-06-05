@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">DLNA 音频接收器</string>
+    <string name="app_name">GeePlayer</string>
     <string name="channel_playback">播放控制</string>
     <string name="notification_playing">正在播放</string>
     <string name="notification_paused">已暂停</string>
