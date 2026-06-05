@@ -95,6 +95,18 @@ class ReceiverForegroundService : Service() {
         player.initialize()
         currentPlayer = player
 
+        // 从 DataStore 读取并应用播放器设置
+        try {
+            runBlocking {
+                val prefs = AppPreferences(applicationContext)
+                player.volumeNormalizationEnabled = prefs.volumeNormalization.first()
+                player.crossfadeEnabled = prefs.crossfadeEnabled.first()
+                Log.d(TAG, "Applied settings: volumeNorm=${player.volumeNormalizationEnabled}, crossfade=${player.crossfadeEnabled}")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to read player settings", e)
+        }
+
         stateManager = AVTStateManager()
         val stack = UpnpStack(httpPort = UpnpConstants.HTTP_PORT).apply { deviceName = getDeviceName() }
         upnpStack = stack
@@ -188,6 +200,7 @@ class ReceiverForegroundService : Service() {
             wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "dlna-wake-lock")
             wakeLock?.acquire()
             Log.d(TAG, "All locks acquired")
+
         } catch (e: Exception) {
             Log.w(TAG, "Failed to acquire locks", e)
         }

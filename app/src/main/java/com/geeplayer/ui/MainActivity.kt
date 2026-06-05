@@ -8,10 +8,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,7 +36,18 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         startService()
         setContent {
-            DlnaReceiverTheme(darkTheme = true) {
+            val prefs = com.geeplayer.data.preferences.AppPreferences(this)
+            val isDarkMode by prefs.darkMode.collectAsState(initial = true)
+
+            // 根据深色模式更新系统状态栏/导航栏外观
+            LaunchedEffect(isDarkMode) {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !isDarkMode
+                    isAppearanceLightNavigationBars = !isDarkMode
+                }
+            }
+
+            DlnaReceiverTheme(darkTheme = isDarkMode) {
                 DlnaReceiverMainScreen()
             }
         }

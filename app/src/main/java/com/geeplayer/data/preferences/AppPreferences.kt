@@ -51,4 +51,8 @@ class AppPreferences(private val context: Context) {
     suspend fun setFontFamily(font: String) {
         context.dataStore.edit { it[FONT_FAMILY] = font }
     }
+    suspend fun setBootStart(enabled: Boolean) {
+        context.dataStore.edit { it[BOOT_START] = enabled }
+    }
+
 }

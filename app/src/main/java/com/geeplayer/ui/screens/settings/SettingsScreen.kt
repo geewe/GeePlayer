@@ -29,21 +29,32 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     // 从 DataStore 读取状态
     val dataStoreDeviceName by prefs.deviceName.collectAsState(initial = "GeePlayer")
     val dataStoreDarkMode by prefs.darkMode.collectAsState(initial = true)
-    val dataStoreFont by prefs.fontFamily.collectAsState(initial = "serif")
+        val dataStoreFont by prefs.fontFamily.collectAsState(initial = "serif")
+    val dataStoreVolumeNorm by prefs.volumeNormalization.collectAsState(initial = false)
+    val dataStoreCrossfade by prefs.crossfadeEnabled.collectAsState(initial = false)
+    val dataStoreBootStart by prefs.bootStart.collectAsState(initial = false)
 
     var deviceName by remember { mutableStateOf(dataStoreDeviceName) }
     var isDarkMode by remember { mutableStateOf(dataStoreDarkMode) }
-    var currentFont by remember { mutableStateOf(dataStoreFont) }
+        var currentFont by remember { mutableStateOf(dataStoreFont) }
+    var volumeNormalization by remember { mutableStateOf(dataStoreVolumeNorm) }
+    var crossfadeEnabled by remember { mutableStateOf(dataStoreCrossfade) }
+    var bootStart by remember { mutableStateOf(dataStoreBootStart) }
     var showNameDialog by remember { mutableStateOf(false) }
     var showFontPicker by remember { mutableStateOf(false) }
     var showEqualizer by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
+    var showNetworkDialog by remember { mutableStateOf(false) }
+    var availableInterfaces by remember { mutableStateOf<List<com.geeplayer.util.NetworkInterfaceInfo>>(emptyList()) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     // 同步 DataStore → UI
     LaunchedEffect(dataStoreDeviceName) { deviceName = dataStoreDeviceName }
     LaunchedEffect(dataStoreDarkMode) { isDarkMode = dataStoreDarkMode }
-    LaunchedEffect(dataStoreFont) { currentFont = dataStoreFont }
+        LaunchedEffect(dataStoreFont) { currentFont = dataStoreFont }
+    LaunchedEffect(dataStoreVolumeNorm) { volumeNormalization = dataStoreVolumeNorm }
+    LaunchedEffect(dataStoreCrossfade) { crossfadeEnabled = dataStoreCrossfade }
+    LaunchedEffect(dataStoreBootStart) { bootStart = dataStoreBootStart }
 
     // 横屏字体选择对话框
     val fontOptions = listOf(
@@ -152,6 +163,51 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     }
 
     // 均衡器页面 (内嵌)
+// --- 网络接口对话框 ---
+    if (showNetworkDialog) {
+        val networkUtils = com.geeplayer.util.NetworkUtils
+        AlertDialog(
+            onDismissRequest = { showNetworkDialog = false },
+            title = { Text("选择网络接口") },
+            text = {
+                Column {
+                    if (availableInterfaces.isEmpty()) {
+                        Text("未检测到可用网络接口", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    } else {
+                        availableInterfaces.forEach { iface ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("已选择: ${iface.displayName} (${iface.ip})")
+                                            showNetworkDialog = false
+                                        }
+                                    }
+                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Rounded.Wifi, contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(iface.displayName, style = MaterialTheme.typography.bodyLarge)
+                                    Text(iface.ip, style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                                }
+                            }
+                            HorizontalDivider()
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showNetworkDialog = false }) { Text("关闭") }
+            }
+        )
+    }
+
     if (showEqualizer) {
         EqualizerScreen(onBack = { showEqualizer = false })
         return
@@ -194,15 +250,36 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             SettingsSection("音频") {
                 SettingsCard(Icons.Rounded.Equalizer, "均衡器", "自定义音效", onClick = { showEqualizer = true })
                 HorizontalDivider(Modifier.padding(horizontal = 16.dp))
-                SettingsCard(Icons.Rounded.VolumeUp, "音量归一化", "自动平衡音量大小", onClick = { })
+                SettingsCard(Icons.Rounded.VolumeUp, "音量归一化",
+                    if (volumeNormalization) "已开启" else "已关闭",
+                    onClick = {
+                        scope.launch {
+                            prefs.setVolumeNormalization(!volumeNormalization)
+                            snackbarHostState.showSnackbar(
+                                "音量归一化: ${if (!volumeNormalization) "开" else "关"}")
+                        }
+                    })
                 HorizontalDivider(Modifier.padding(horizontal = 16.dp))
-                SettingsCard(Icons.Rounded.Shuffle, "淡入淡出", "曲目切换平滑过渡", onClick = { })
+                SettingsCard(Icons.Rounded.Shuffle, "淡入淡出",
+                    if (crossfadeEnabled) "已开启" else "已关闭",
+                    onClick = {
+                        scope.launch {
+                            prefs.setCrossfadeEnabled(!crossfadeEnabled)
+                            snackbarHostState.showSnackbar(
+                                "淡入淡出: ${if (!crossfadeEnabled) "开" else "关"}")
+                        }
+                    })
             }
 
             Spacer(Modifier.height(16.dp))
 
             SettingsSection("网络") {
-                SettingsCard(Icons.Rounded.Wifi, "网络接口", "自动检测", onClick = { })
+                SettingsCard(Icons.Rounded.Wifi, "网络接口",
+                    com.geeplayer.util.NetworkUtils.getLocalIpAddress(),
+                    onClick = {
+                        availableInterfaces = com.geeplayer.util.NetworkUtils.getAvailableInterfaces()
+                        showNetworkDialog = true
+                    })
                 HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                 SettingsCard(Icons.Rounded.Dns, "HTTP 端口", "49820", onClick = { })
             }
@@ -210,7 +287,17 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             Spacer(Modifier.height(16.dp))
 
             SettingsSection("其他") {
-                SettingsCard(Icons.Rounded.PowerSettingsNew, "开机自启", "系统启动时自动运行", onClick = { })
+                SettingsCard(Icons.Rounded.PowerSettingsNew, "开机自启",
+                    if (bootStart) "已开启" else "已关闭",
+                    onClick = {
+                        scope.launch {
+                            val newVal = !bootStart
+                            prefs.setBootStart(newVal)
+                            com.geeplayer.service.BootReceiver.setEnabled(context, newVal)
+                            snackbarHostState.showSnackbar(
+                                "开机自启: ${if (newVal) "开" else "关"}")
+                        }
+                    })
                 HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                 SettingsCard(Icons.Rounded.Info, "关于", "GeePlayer v1.0.0", onClick = { showAbout = true })
             }

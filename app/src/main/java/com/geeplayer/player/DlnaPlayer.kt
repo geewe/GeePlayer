@@ -1,6 +1,7 @@
 package com.geeplayer.player
 
 import android.content.Context
+import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.util.Log
 import androidx.media3.common.*
@@ -14,6 +15,7 @@ import android.os.Looper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
 
 class DlnaPlayer(private val context: Context) {
     private companion object {
@@ -39,6 +41,7 @@ class DlnaPlayer(private val context: Context) {
     val playerState: StateFlow<PlayerState> = _playerState.asStateFlow()
 
     private var exoPlayer: ExoPlayer? = null
+    private var loudnessEnhancer: LoudnessEnhancer? = null
     private var lastKnownUri: String = ""
     private val mainHandler = Handler(Looper.getMainLooper())
     private val positionUpdateRunnable = object : Runnable {
@@ -47,6 +50,18 @@ class DlnaPlayer(private val context: Context) {
             mainHandler.postDelayed(this, 250)
         }
     }
+
+    /** 音量归一化（响度增强）开关 */
+    @Volatile
+    var volumeNormalizationEnabled: Boolean = false
+        set(value) {
+            field = value
+            applyVolumeNormalization()
+        }
+
+    /** 淡入淡出开关 */
+    @Volatile
+    var crossfadeEnabled: Boolean = false
 
     fun initialize() {
         if (exoPlayer != null) return
@@ -92,6 +107,18 @@ class DlnaPlayer(private val context: Context) {
                     }
                 })
             }
+
+        // 初始化 LoudnessEnhancer（延迟到 ExoPlayer 就绪后）
+        try {
+            val sessionId = exoPlayer?.audioSessionId ?: 0
+            if (sessionId != 0) {
+                loudnessEnhancer = LoudnessEnhancer(sessionId).apply {
+                    enabled = false
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to init LoudnessEnhancer", e)
+        }
 
         Log.i(TAG, "ExoPlayer initialized")
     }
@@ -196,6 +223,8 @@ class DlnaPlayer(private val context: Context) {
             exoPlayer?.release()
             exoPlayer = null
         }
+        loudnessEnhancer?.release()
+        loudnessEnhancer = null
         Log.i(TAG, "Player released")
     }
 
@@ -228,5 +257,26 @@ class DlnaPlayer(private val context: Context) {
             currentPosition = player.currentPosition.coerceAtLeast(0),
             bufferedPosition = player.bufferedPosition.coerceAtLeast(0)
         )
+    }
+
+    /** 应用音量归一化 */
+    private fun applyVolumeNormalization() {
+        try {
+            if (loudnessEnhancer == null) {
+                val sessionId = exoPlayer?.audioSessionId ?: 0
+                if (sessionId != 0) {
+                    loudnessEnhancer = LoudnessEnhancer(sessionId)
+                }
+            }
+            loudnessEnhancer?.let {
+                it.enabled = volumeNormalizationEnabled
+                if (volumeNormalizationEnabled) {
+                    it.setTargetGain(200)
+                }
+                Log.d(TAG, "LoudnessEnhancer ${if (volumeNormalizationEnabled) "enabled" else "disabled"}")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to apply volume normalization", e)
+        }
     }
 }
