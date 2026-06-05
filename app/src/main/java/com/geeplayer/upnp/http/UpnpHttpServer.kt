@@ -299,11 +299,11 @@ class UpnpHttpServer(
 
     private fun handleWebIndex(): Response {
         val html = """<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>DLNA Receiver</title>
+<html><head><meta charset="utf-8"><title>GeePlayer</title>
 <style>body{font-family:sans-serif;background:#121224;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
 .card{background:#1E1E3A;border-radius:20px;padding:32px;text-align:center;width:360px}
 h1{color:#BB86FC}.info{color:rgba(255,255,255,0.7)}</style></head>
-<body><div class="card"><h1>DLNA Receiver</h1>
+<body><div class="card"><h1>GeePlayer</h1>
 <p class="info">Media Renderer 运行中</p>
 <p class="info">${upnpStack.name}</p>
 <p><a href="/api/debug" style="color:#BB86FC">调试信息</a></p>

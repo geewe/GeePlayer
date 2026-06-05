@@ -25,12 +25,12 @@ object DeviceDescriptionBuilder {
     <device>
         <deviceType>${UpnpConstants.URN_DEVICE}</deviceType>
         <friendlyName>$name</friendlyName>
-        <manufacturer>Codex DLNA</manufacturer>
-        <manufacturerURL>https://github.com/dlna-receiver</manufacturerURL>
-        <modelDescription>DLNA Audio Receiver for Android</modelDescription>
-        <modelName>DlnaReceiver</modelName>
+        <manufacturer>GeePlayer</manufacturer>
+        <manufacturerURL>https://github.com/geewe/GeePlayer</manufacturerURL>
+        <modelDescription>GeePlayer - DLNA Media Renderer</modelDescription>
+        <modelName>GeePlayer</modelName>
         <modelNumber>1.0.0</modelNumber>
-        <modelURL>https://github.com/dlna-receiver</modelURL>
+        <modelURL>https://github.com/geewe/GeePlayer</modelURL>
         <serialNumber>00000001</serialNumber>
         <UDN>$udn</UDN>
         <iconList>

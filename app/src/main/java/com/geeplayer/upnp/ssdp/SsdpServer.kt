@@ -126,7 +126,7 @@ class SsdpServer(
                 append("SERVER: $serverName\r\n")
                 append("ST: $usn\r\n")
                 append("USN: $usn\r\n")
-                append("X-AV-Physical-Unit-Information: $locationTemplate\r\n")
+                append("X-AV-Physical-Unit-Information: http://${upnpStack.deviceDescUrl}/device.xml\r\n")
                 append("BOOTID.UPNP.ORG: 1\r\n")
                 append("CONFIGID.UPNP.ORG: 1\r\n")
                 append("\r\n")
